@@ -12,6 +12,13 @@ from video.inference_video import run_video_inference
 from fusion.rules_engine import fuse_events
 from alerts.alert_manager import save_alert_log
 
+from audio.audio_features import extract_audio_features
+from audio.urgency_detection import detect_clinical_urgency
+
+from audio.extract_audio import extract_wav_from_video
+from audio.speech_to_text_sr import transcribe_wav_google
+from audio.patient_distress_detection import detect_patient_distress_from_text
+
 
 def _now_iso() -> str:
     return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
@@ -29,7 +36,8 @@ def _load_config() -> Dict[str, Any]:
     Depois você pode migrar para config/thresholds.yaml e config/azure_config.yaml.
     """
     return {
-        "VIDEO_INPUT": os.getenv("VIDEO_INPUT", "data/videos/sample.mp4"),
+        "VIDEO_INPUT": os.getenv("VIDEO_INPUT", "data/videos/pph_simulation_clip.mp4"),
+        "FULL_VIDEO_INPUT": os.getenv("FULL_VIDEO_INPUT", "data/videos/full_pph_video.mp4"),
         "VIDEO_MODEL": os.getenv("VIDEO_MODEL", "yolov8n.pt"),
         "VIDEO_CONF": float(os.getenv("VIDEO_CONF", "0.35")),
         "OUTPUT_DIR": os.getenv("OUTPUT_DIR", "results"),
@@ -53,17 +61,31 @@ def main() -> None:
     )
     print(f"Eventos de vídeo: {len(video_events)}")
 
-    # 2) Áudio -> eventos vocais (placeholder por enquanto)
-    # Nesta fase inicial, deixamos como lista vazia.
-    print("\n[2/4] Rodando análise de ÁUDIO... (placeholder nesta etapa)")
-    audio_events: List[Dict[str, Any]] = []
+    # 2) Áudio -> eventos vocais
+    print("\n[2/4] Rodando análise de ÁUDIO...")
+    audio_features = extract_audio_features(
+        audio_path="data/audios/patient_distress_audio.wav",
+        language="en-US",
+    )
+    print("Transcrição:", audio_features.get("transcript", "")[:300])
+    audio_events = detect_clinical_urgency(audio_features)
+
+    print("Audio dBFS:", audio_features.get("audio_dbfs"))
+    print("Chunks:", audio_features.get("num_chunks"))
+    print("Transcrição:", audio_features.get("transcript", "")[:500])
+    print("Chunks transcript:", audio_features.get("chunks_transcript", [])[:3])
+
+
+    audio_events = detect_clinical_urgency(audio_features)
+    print(f"Eventos de áudio: {len(audio_events)}")
 
     # 3) Fusão multimodal -> alerta
     print("\n[3/4] Fundindo eventos e avaliando risco...")
     fusion_result = fuse_events(
         video_events=[asdict(e) for e in video_events],
-        audio_events=audio_events,
+        audio_events=[asdict(e) for e in audio_events],
     )
+
     print(f"Resultado de fusão: {json.dumps(fusion_result, ensure_ascii=False, indent=2)}")
 
     # 4) Persistência / log do alerta

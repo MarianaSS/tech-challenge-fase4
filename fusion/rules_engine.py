@@ -8,13 +8,13 @@ def fuse_events(video_events: List[Dict[str, Any]], audio_events: List[Dict[str,
     Motor simples de regras multimodais.
     Nesta versão: se houver evento de sangramento + evento de dor vocal, risco HIGH.
     """
-    has_bleeding = any(e.get("event") == "anomalous_bleeding" and e.get("confidence", 0) >= 0.5 for e in video_events)
-    has_pain = any(e.get("event") == "possible_pain_vocalization" and e.get("confidence", 0) >= 0.5 for e in audio_events)
+    has_bleeding = any(e.get("event") == "anomalous_bleeding" for e in video_events)
+    has_distress = any(e.get("event") == "patient_distress_detected" for e in audio_events)
 
-    if has_bleeding and has_pain:
+    if has_bleeding and has_distress:
         return {
             "risk_level": "high",
-            "reasons": ["bleeding", "pain_vocalization"],
+            "reasons": ["bleeding", "patient_distress"],
             "action": "notify_medical_team",
         }
 
@@ -25,10 +25,10 @@ def fuse_events(video_events: List[Dict[str, Any]], audio_events: List[Dict[str,
             "action": "review_procedure",
         }
 
-    if has_pain:
+    if has_distress:
         return {
             "risk_level": "medium",
-            "reasons": ["pain_vocalization"],
+            "reasons": ["patient_distress_detected"],
             "action": "check_patient_comfort",
         }
 
