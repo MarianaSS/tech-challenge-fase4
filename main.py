@@ -5,7 +5,7 @@ import os
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 # Modulos do projeto
 from video.inference_video import run_video_inference
@@ -14,10 +14,6 @@ from alerts.alert_manager import save_alert_log
 
 from audio.audio_features import extract_audio_features
 from audio.urgency_detection import detect_clinical_urgency
-
-from audio.extract_audio import extract_wav_from_video
-from audio.speech_to_text_sr import transcribe_wav_google
-from audio.patient_distress_detection import detect_patient_distress_from_text
 
 from azure_integration.function_client import send_alert_to_function
 
@@ -32,10 +28,6 @@ def _ensure_dirs() -> None:
 
 
 def _load_config() -> Dict[str, Any]:
-    """
-    Config simples via variáveis de ambiente por enquanto.
-    Depois você pode migrar para config/thresholds.yaml e config/azure_config.yaml.
-    """
     return {
         "VIDEO_INPUT": os.getenv("VIDEO_INPUT", "data/videos/pph_simulation_clip.mp4"),
         "FULL_VIDEO_INPUT": os.getenv("FULL_VIDEO_INPUT", "data/videos/full_pph_video.mp4"),

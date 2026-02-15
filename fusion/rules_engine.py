@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 def fuse_events(video_events: List[Dict[str, Any]], audio_events: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Motor simples de regras multimodais.
-    Nesta versão: se houver evento de sangramento + evento de dor vocal, risco HIGH.
+    Se houver evento de sangramento + evento de dor vocal, risco HIGH.
     """
     has_bleeding = any(e.get("event") == "anomalous_bleeding" for e in video_events)
     has_distress = any(e.get("event") == "patient_distress_detected" for e in audio_events)
