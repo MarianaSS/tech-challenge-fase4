@@ -19,6 +19,7 @@ from audio.extract_audio import extract_wav_from_video
 from audio.speech_to_text_sr import transcribe_wav_google
 from audio.patient_distress_detection import detect_patient_distress_from_text
 
+from azure_integration.function_client import send_alert_to_function
 
 def _now_iso() -> str:
     return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
@@ -67,12 +68,11 @@ def main() -> None:
         audio_path="data/audios/patient_distress_audio.wav",
         language="en-US",
     )
-    print("Transcrição:", audio_features.get("transcript", "")[:300])
     audio_events = detect_clinical_urgency(audio_features)
 
+    print("Transcrição:", audio_features.get("transcript", "")[:300])
     print("Audio dBFS:", audio_features.get("audio_dbfs"))
     print("Chunks:", audio_features.get("num_chunks"))
-    print("Transcrição:", audio_features.get("transcript", "")[:500])
     print("Chunks transcript:", audio_features.get("chunks_transcript", [])[:3])
 
 
@@ -95,6 +95,18 @@ def main() -> None:
 
     print("\n✅ Pipeline concluído.")
 
+    # 5) Enviar alerta para Azure Function
+    azure_payload = {
+        "risk_level": fusion_result.get("risk_level"),
+        "reasons": fusion_result.get("reasons", []),
+        "action": fusion_result.get("action"),
+        "video_summary": {"count_events": len(video_events)},
+        "audio_summary": {"count_events": len(audio_events)},
+        "transcript": audio_features.get("transcript", "")[:500],
+    }
+
+    azure_resp = send_alert_to_function(azure_payload)
+    print("Azure response:", azure_resp)
 
 if __name__ == "__main__":
     main()

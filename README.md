@@ -1,121 +1,165 @@
-# Tech Challenge – Fase 4  
-## Sistema Multimodal para Monitoramento Preventivo em Procedimentos Ginecológicos
+# Tech Challenge -- Fase 4
 
-### Pós-graduação em Inteligência Artificial
+## Sistema Multimodal para Detecção de Risco em Procedimentos Ginecológicos
 
----
+------------------------------------------------------------------------
 
-## Contexto
+## 1. Visão Geral
 
-A integração da Inteligência Artificial aos processos médicos tem ampliado a capacidade de monitoramento, análise e apoio à decisão clínica. No contexto da saúde da mulher, especialmente em procedimentos ginecológicos, há desafios específicos relacionados à identificação precoce de complicações e à garantia da segurança da paciente.
+Este projeto implementa um sistema multimodal de análise clínica capaz
+de identificar situações de risco durante procedimentos ginecológicos,
+combinando:
 
-Durante procedimentos clínicos, sinais de risco nem sempre são imediatamente evidentes por meios tradicionais, como sinais vitais. Mudanças sutis no comportamento vocal da paciente ou alterações visuais no procedimento podem indicar situações que demandam atenção imediata da equipe médica.
+-   Visão computacional (detecção de sangramento em vídeo)
+-   Processamento de áudio (análise de fala da paciente)
+-   Fusão multimodal para classificação de risco
+-   Integração com Azure Cognitive Services
+-   Armazenamento seguro em Azure Blob Storage
 
-Este projeto propõe um sistema de monitoramento multimodal que combina **análise de vídeo** e **análise de áudio** para identificar **sinais precoces de risco**, atuando como um mecanismo adicional de apoio à segurança da paciente.
+O objetivo é simular um sistema de suporte à decisão clínica capaz de
+detectar precocemente sinais de complicação, como hemorragia pós-parto
+associada a sofrimento relatado pela paciente.
 
----
+------------------------------------------------------------------------
 
-## Objetivo do Projeto
+## 2. Arquitetura
 
-Desenvolver um sistema baseado em Inteligência Artificial capaz de:
+Arquitetura final do sistema:
 
-- Detectar sinais visuais anômalos durante procedimentos ginecológicos  
-- Identificar padrões vocais compatíveis com dor aguda ou sofrimento  
-- Realizar a fusão multimodal de dados de vídeo e áudio  
-- Gerar alertas preventivos para apoio à decisão clínica  
-- Utilizar serviços em nuvem para processamento de dados sensíveis  
+Pipeline local (Python) ├── Módulo de vídeo (YOLO) ├── Módulo de áudio
+(SpeechRecognition) ├── Fusão multimodal └── Cliente HTTP
 
-O sistema **não tem caráter diagnóstico**, atuando como um mecanismo de **monitoramento e alerta**, auxiliando a equipe médica na identificação de situações que merecem atenção imediata.
+        ↓ POST (JSON minimizado)
 
----
+Azure Function (HTTP Trigger) ├── Azure AI Language (Healthcare
+Entities) └── Azure Blob Storage (container privado "alerts")
 
-## Arquitetura Geral
+O pipeline local executa a inferência e envia apenas um resumo
+estruturado do alerta para a nuvem. Nenhum vídeo ou áudio bruto é
+transmitido.
 
-O sistema é composto por quatro módulos principais:
+------------------------------------------------------------------------
 
-Vídeo → Análise Visual (YOLOv8) → Evento Visual
-Áudio → Análise Vocal (Speech + Features) → Evento de Áudio
-Eventos → Fusão Multimodal → Avaliação de Risco
-Avaliação → Geração de Alerta
+## 3. Estrutura do Projeto
 
+### Projeto principal (pipeline local)
 
----
+tech-challenge-fase4/ │ ├── video/ ├── audio/ ├── fusion/ ├──
+azure_integration/ ├── main.py ├── requirements.txt └── README.md
 
-## Análise de Vídeo
+### Projeto Azure Function (separado)
 
-- Processamento de vídeos de procedimentos ginecológicos (cenários simulados)
-- Utilização de modelo **YOLOv8 customizado**
-- Detecção de:
-  - Sangramento anômalo durante o procedimento
+ingest-alert-func/ │ ├── function_app.py ├── host.json ├──
+requirements.txt └── local.settings.json
 
-### Saída do módulo
-- Bounding boxes
-- Score de confiança
-- Registro de evento visual
+------------------------------------------------------------------------
 
----
+## 4. Instalação -- Projeto Principal
 
-## Análise de Áudio
+### Criar ambiente virtual
 
-- Processamento de gravações de voz da paciente (cenários simulados)
-- Utilização de **Speech-to-Text** para apoio à análise
-- Extração de características acústicas:
-  - Intensidade (energia)
-  - Pitch
-  - Pausas e interrupções
-  - Vocalizações não linguísticas
+``` bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-### Objetivo
-Identificar **padrões vocais compatíveis com dor aguda**, entendida como um sinal precoce de possível desconforto significativo durante o procedimento.
+### Instalar dependências
 
----
+``` bash
+pip install -r requirements.txt
+```
 
-## Fusão Multimodal
+Bibliotecas principais:
 
-A fusão multimodal combina eventos visuais e vocais para aumentar a confiabilidade dos alertas.
+-   opencv-python
+-   ultralytics
+-   torch
+-   speechrecognition
+-   moviepy
+-   requests
 
-### Exemplo de regra:
+------------------------------------------------------------------------
 
-Se (sangramento anômalo detectado)
-E (vocalização compatível com dor)
-→ alerta de risco elevado
+## 5. Configuração de Variáveis de Ambiente
 
+``` bash
+export VIDEO_INPUT="data/videos/pph_simulation_clip.mp4"
+export VIDEO_MODEL="caminho/para/best.pt"
+export VIDEO_CONF="0.35"
+export AZURE_FUNCTION_URL="https://<app>.azurewebsites.net/api/ingest_alert?code=..."
+```
 
-Essa abordagem reduz falsos positivos e fortalece o caráter preventivo do sistema.
+------------------------------------------------------------------------
 
----
+## 6. Execução
 
-## Geração de Alertas
+``` bash
+python main.py
+```
 
-O módulo de alertas:
-- Consolida os eventos multimodais
-- Classifica o nível de risco
-- Registra logs do evento
-- Simula a notificação à equipe médica
+Saída esperada:
 
----
+-   Número de eventos de vídeo
+-   Número de eventos de áudio
+-   Resultado da fusão multimodal
+-   Resposta da Azure Function
+-   Confirmação de upload no Blob Storage
 
-## Uso de Serviços em Nuvem
+------------------------------------------------------------------------
 
-O projeto utiliza serviços gerenciados em nuvem para ampliar a capacidade de processamento:
+## 7. Fusão Multimodal
 
-- Azure Speech-to-Text
-- Azure Storage para armazenamento de vídeos e áudios
+Exemplo de saída:
 
-O uso de dados simulados respeita princípios éticos e de privacidade, evitando o uso de informações clínicas reais de pacientes.
+``` json
+{
+  "risk_level": "high",
+  "reasons": ["bleeding", "patient_distress"],
+  "action": "notify_medical_team"
+}
+```
 
+------------------------------------------------------------------------
 
----
+## 8. Integração com Azure
 
-## ⚠️ Considerações Éticas
+### Azure Function
 
-Devido às restrições éticas e legais relacionadas ao uso de dados clínicos reais, este projeto utiliza **cenários simulados**. As vocalizações e eventos visuais foram construídos com base em características amplamente descritas na literatura médica, com o objetivo de validar o fluxo técnico e a arquitetura proposta.
+-   Recebe alerta estruturado via HTTP
+-   Enriquecimento com Azure AI Language
+-   Persistência em Azure Blob Storage
 
----
+### Azure AI Language
 
-## Próximos Passos
+-   Extração de entidades clínicas
+-   Identificação de relações médicas
 
-- Treinamento e ajuste fino do modelo YOLOv8
-- Implementação completa do pipeline de áudio
-- Integração final dos módulos
-- Demonstração em vídeo do sistema em funcionamento
+### Azure Blob Storage
+
+Container privado:
+
+alerts
+
+Formato dos arquivos:
+
+alert_YYYYMMDDTHHMMSSZ.json
+
+------------------------------------------------------------------------
+
+## 9. Segurança e Privacidade
+
+-   Não envio de mídia bruta
+-   Transmissão apenas de resumo estruturado
+-   Autenticação via Function Key
+-   Armazenamento privado no Blob
+-   Segredos via variáveis de ambiente
+
+------------------------------------------------------------------------
+
+## 10. Objetivo Acadêmico
+
+Este projeto demonstra:
+
+-   Aplicação prática de IA multimodal
+-   Integração com serviços gerenciados em nuvem
+-   Arquitetura distribuída baseada em microserviço
